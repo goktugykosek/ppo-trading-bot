@@ -29,9 +29,6 @@ from trading_env import TradingEnv
 import os
 
 
-# ------------------------------------------------------------------ #
-#  Backtest koşusu                                                    #
-# ------------------------------------------------------------------ #
 
 def run_backtest(
     model:      PPO,
@@ -58,7 +55,6 @@ def run_backtest(
     done   = False
     step   = 0
 
-    # Kayıt listeleri
     prices       = []
     portfolio    = []
     actions_list = []
@@ -94,9 +90,7 @@ def run_backtest(
     }
 
 
-# ------------------------------------------------------------------ #
-#  Metrik hesaplama                                                   #
-# ------------------------------------------------------------------ #
+
 
 def compute_metrics(result: dict) -> dict:
     """Backtest sonucundan finansal metrikleri hesaplar."""
@@ -114,22 +108,18 @@ def compute_metrics(result: dict) -> dict:
     else:
         sharpe = 0.0
 
-    # Max Drawdown
     rolling_max = np.maximum.accumulate(portfolio)
     drawdowns   = (portfolio - rolling_max) / rolling_max
     max_drawdown = drawdowns.min() * 100
 
-    # Buy & Hold karşılaştırması
     bh_return = (prices[-1] / prices[0] - 1) * 100
 
-    # Trade istatistikleri
     trades        = result["trade_history"]
     sell_trades   = [t for t in trades if t[0] == "SELL"]
     n_trades      = len(sell_trades)
     winning_trades = [t for t in sell_trades if len(t) > 3 and t[3] > 0]
     win_rate      = len(winning_trades) / n_trades * 100 if n_trades > 0 else 0
 
-    # Aksiyon dağılımı
     action_counts = {
         "HOLD": int((actions == 0).sum()),
         "BUY":  int((actions == 1).sum()),
@@ -174,9 +164,6 @@ def print_metrics(metrics: dict, ticker: str = ""):
     print(f"{sep}\n")
 
 
-# ------------------------------------------------------------------ #
-#  Görselleştirme                                                     #
-# ------------------------------------------------------------------ #
 
 def plot_backtest(
     result:  dict,
