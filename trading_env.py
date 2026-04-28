@@ -37,7 +37,6 @@ class TradingEnv(gym.Env):
 
     metadata = {"render_modes": ["human"]}
 
-    # Gözlemde kullanılacak feature sütunları (Date ve OHLCV hariç)
     FEATURE_COLS = [
         "Close", "Volume",
         "sma20", "sma50", "ema20",
@@ -64,21 +63,17 @@ class TradingEnv(gym.Env):
         self.reward_scaling  = reward_scaling
         self.render_mode     = render_mode
 
-        # Feature matrisini hazırla ve normalize et
         self._features = self._build_features()
         self.n_features = self._features.shape[1]
 
-        # Aksiyon: 0=HOLD, 1=BUY, 2=SELL
         self.action_space = spaces.Discrete(3)
 
-        # Gözlem: (window_size × n_features) düzleştirilmiş vektör
         obs_size = self.window_size * self.n_features
         self.observation_space = spaces.Box(
             low=-np.inf, high=np.inf,
             shape=(obs_size,), dtype=np.float32
         )
 
-        # Durum değişkenleri (reset'te sıfırlanır)
         self._current_step   = 0
         self._balance        = initial_balance
         self._shares_held    = 0.0
@@ -86,16 +81,13 @@ class TradingEnv(gym.Env):
         self._total_profit   = 0.0
         self._trade_history  = []
 
-    # ------------------------------------------------------------------ #
-    #  Yardımcı metodlar                                                   #
-    # ------------------------------------------------------------------ #
+   
 
     def _build_features(self) -> np.ndarray:
         """Feature sütunlarını seçer ve Z-score normalize eder."""
         cols = [c for c in self.FEATURE_COLS if c in self.df.columns]
         arr  = self.df[cols].values.astype(np.float32)
 
-        # Z-score normalizasyonu (her sütun bağımsız)
         mean = arr.mean(axis=0)
         std  = arr.std(axis=0) + 1e-8
         return (arr - mean) / std
@@ -104,7 +96,7 @@ class TradingEnv(gym.Env):
         """Güncel penceredeki feature vektörünü döndürür."""
         start = self._current_step
         end   = self._current_step + self.window_size
-        obs   = self._features[start:end]           # (window_size, n_features)
+        obs   = self._features[start:end]           
         return obs.flatten().astype(np.float32)
 
     def _current_price(self) -> float:
@@ -114,10 +106,7 @@ class TradingEnv(gym.Env):
     def _portfolio_value(self) -> float:
         return self._balance + self._shares_held * self._current_price()
 
-    # ------------------------------------------------------------------ #
-    #  Gymnasium API                                                        #
-    # ------------------------------------------------------------------ #
-
+    
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
         self._current_step  = 0
@@ -133,10 +122,8 @@ class TradingEnv(gym.Env):
         reward = 0.0
         info   = {}
 
-        # --- Aksiyon işle ---
         if action == 1:   # BUY
             if self._shares_held == 0 and self._balance > 0:
-                # Tüm bakiye ile al
                 cost             = self._balance
                 commission_fee   = cost * self.commission
                 self._shares_held = (cost - commission_fee) / price
@@ -146,7 +133,6 @@ class TradingEnv(gym.Env):
 
         elif action == 2:  # SELL
             if self._shares_held > 0:
-                # Tüm pozisyonu kapat
                 gross            = self._shares_held * price
                 commission_fee   = gross * self.commission
                 net_proceeds     = gross - commission_fee
@@ -158,17 +144,14 @@ class TradingEnv(gym.Env):
                 self._entry_price = 0.0
                 self._trade_history.append(("SELL", self._current_step, price, profit))
 
-        # HOLD cezası: uzun bekleyen ajan hafifçe cezalandırılır
         if action == 0 and self._shares_held > 0:
             reward -= 0.01  # küçük negatif ödül
 
-        # Adımı ilerlet
         self._current_step += 1
         max_steps = len(self._features) - self.window_size - 1
         terminated = self._current_step >= max_steps
         truncated  = False
 
-        # Bölüm sonu ödülü: portföy büyümesi
         if terminated and self._shares_held > 0:
             gross          = self._shares_held * price
             commission_fee = gross * self.commission
