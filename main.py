@@ -57,9 +57,7 @@ def main():
     print(f"   Mod     : {args.mode}")
     print("🤖 " + "="*50 + "\n")
 
-    # ----------------------------------------------------------------
-    # 1. VERİ HAZIRLAMA
-    # ----------------------------------------------------------------
+
     raw_df = fetch_stock_data(args.ticker, args.start, args.end)
     df     = add_technical_indicators(raw_df)
     save_data(df, f"data/{args.ticker}_processed.csv")
@@ -71,9 +69,7 @@ def main():
         commission      = args.commission,
     )
 
-    # ----------------------------------------------------------------
-    # 2. EĞİTİM
-    # ----------------------------------------------------------------
+  
     model = None
 
     if args.mode in ("train", "both"):
@@ -86,12 +82,9 @@ def main():
             **env_kwargs,
         )
 
-    # ----------------------------------------------------------------
-    # 3. BACKTEST
-    # ----------------------------------------------------------------
+   
     if args.mode in ("backtest", "both"):
         if model is None:
-            # Kaydedilmiş modeli yükle
             model_path = args.model_path or "models/best/best_model.zip"
             if not os.path.exists(model_path):
                 model_path = "models/ppo_trading_final.zip"
