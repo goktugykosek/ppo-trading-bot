@@ -23,9 +23,6 @@ import pandas as pd
 from trading_env import TradingEnv
 
 
-# ------------------------------------------------------------------ #
-#  Özel callback: her episode'un kâr/zarar özetini yazdırır          #
-# ------------------------------------------------------------------ #
 
 class TradingMetricsCallback(BaseCallback):
     """Her episode bitişinde terminal'e özet basar."""
@@ -35,7 +32,7 @@ class TradingMetricsCallback(BaseCallback):
         self.episode_profits = []
 
     def _on_step(self) -> bool:
-        # VecEnv'de episode bitti mi kontrol et
+      
         if self.locals.get("dones") is not None:
             for i, done in enumerate(self.locals["dones"]):
                 if done:
@@ -52,10 +49,6 @@ class TradingMetricsCallback(BaseCallback):
         return True
 
 
-# ------------------------------------------------------------------ #
-#  Ortam oluşturma                                                    #
-# ------------------------------------------------------------------ #
-
 def make_env(df: pd.DataFrame, window_size: int, **env_kwargs):
     """Monitor ile sarılmış env factory fonksiyonu."""
     def _init():
@@ -71,14 +64,10 @@ def build_vec_env(df: pd.DataFrame, window_size: int, n_envs: int = 4, **env_kwa
     n_envs > 1 → PPO daha verimli öğrenir.
     """
     env = DummyVecEnv([make_env(df, window_size, **env_kwargs) for _ in range(n_envs)])
-    # Gözlem ve ödülleri normalize et (eğitimi hızlandırır)
     env = VecNormalize(env, norm_obs=True, norm_reward=True, clip_obs=10.0)
     return env
 
 
-# ------------------------------------------------------------------ #
-#  PPO modeli oluşturma                                               #
-# ------------------------------------------------------------------ #
 
 def build_ppo_model(env, log_dir: str = "logs/") -> PPO:
     """
@@ -116,9 +105,7 @@ def build_ppo_model(env, log_dir: str = "logs/") -> PPO:
     return model
 
 
-# ------------------------------------------------------------------ #
-#  Eğitim                                                             #
-# ------------------------------------------------------------------ #
+
 
 def train(
     train_df: pd.DataFrame,
@@ -158,15 +145,13 @@ def train(
     print(f"  Pencere boyutu: {window_size}")
     print("="*60 + "\n")
 
-    # Eğitim ortamı
     train_env = build_vec_env(train_df, window_size, n_envs, **env_kwargs)
 
-    # Validation ortamı (tek env, normalize bilgisini train'den alır)
     val_env_raw = DummyVecEnv([make_env(val_df, window_size, **env_kwargs)])
     val_env = VecNormalize(val_env_raw, norm_obs=True, norm_reward=False,
                            training=False, clip_obs=10.0)
 
-    # Callbacks
+    
     eval_callback = EvalCallback(
         val_env,
         best_model_save_path = os.path.join(model_dir, "best/"),
@@ -185,7 +170,6 @@ def train(
 
     metrics_callback = TradingMetricsCallback(verbose=1)
 
-    # Model oluştur ve eğit
     model = build_ppo_model(train_env, log_dir)
 
     model.learn(
@@ -195,7 +179,6 @@ def train(
         progress_bar    = True,
     )
 
-    # Son modeli kaydet
     final_path = os.path.join(model_dir, "ppo_trading_final")
     model.save(final_path)
     train_env.save(os.path.join(model_dir, "vec_normalize.pkl"))
